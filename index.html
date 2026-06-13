@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Paint Color Mixer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 45px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            background: white;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .palette-section {
+            display: none;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .palette-section.active {
+            display: block;
+        }
+
+        .palette-section h3 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        #paletteCanvas {
+            max-width: 100%;
+            max-height: 300px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: crosshair;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .color-feedback {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-size: 13px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .color-feedback.show {
+            opacity: 1;
+        }
+
+        .colors-section {
+            padding: 20px;
+        }
+
+        .colors-section h2 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .color-item {
+            display: grid;
+            grid-template-columns: 40px 120px 1fr 50px 40px;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .color-swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            border: 2px solid #ddd;
+        }
+
+        .color-item input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .color-item input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 5px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #764ba2;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .weight-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        .remove-btn {
+            width: 40px;
+            padding: 8px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .remove-btn:hover {
+            background: #ee5a52;
+            transform: scale(1.1);
+        }
+
+        .preset-colors {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .preset-color-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .preset-color-btn:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .preset-color-swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 1px solid #999;
+        }
+
+        .result-section {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .result-section h2 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        #mixResult {
+            width: 100%;
+            height: 100px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            margin-bottom: 12px;
+            transition: background-color 0.1s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .result-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            font-size: 13px;
+        }
+
+        .result-info-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .result-info-label {
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        .result-info-value {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .color-item {
+                grid-template-columns: 30px 1fr;
+            }
+
+            .result-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Model Paint Color Mixer</h1>
+            <p>Preview how paints mix before applying to your models</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="colorPicker">Color Picker</label>
+                <input type="color" id="colorPicker" value="#8B5A3C">
+                <button onclick="addColorFromPicker()">Add Color</button>
+            </div>
+
+            <div class="control-group">
+                <label for="imageUpload">Paint Set Image</label>
+                <input type="file" id="imageUpload" accept="image/*">
+                <button onclick="document.getElementById('imageUpload').click()">Upload Image</button>
+            </div>
+
+            <div class="control-group">
+                <label for="presetSelect">Brand Presets</label>
+                <select id="presetSelect" onchange="showPresetColors()">
+                    <option value="">Select a brand...</option>
+                    <option value="vallejo">Vallejo Model Color</option>
+                    <option value="citadel">Citadel</option>
+                    <option value="ak">AK Interactive</option>
+                    <option value="armypainter">Army Painter</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="palette-section" id="paletteSection">
+            <h3>Click on paint pots or colors to sample them</h3>
+            <canvas id="paletteCanvas"></canvas>
+        </div>
+
+        <div id="presetsContainer"></div>
+
+        <div class="colors-section">
+            <h2>Selected Colors</h2>
+            <div id="colorList" class="color-list"></div>
+            <div id="emptyState" class="empty-state">
+                <p>No colors selected yet.<br>Use the color picker, upload a paint set image, or choose a brand preset to get started.</p>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h2>Mixed Result</h2>
+            <div id="mixResult"></div>
+            <div class="result-info">
+                <div class="result-info-item">
+                    <div class="result-info-label">Hex</div>
+                    <div class="result-info-value" id="resultHex">#FFFFFF</div>
+                </div>
+                <div class="result-info-item">
+                    <div class="result-info-label">RGB</div>
+                    <div class="result-info-value" id="resultRgb">RGB(255, 255, 255)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="color-feedback" id="colorFeedback"></div>
+
+    <script>
+        const PRESETS = {
+            vallejo: [
+                { name: 'Cavalry Brown', hex: '#7B4F2E' },
+                { name: 'Pale Blue', hex: '#A0BED8' },
+                { name: 'German Grey', hex: '#5A6B7D' },
+                { name: 'Olive Green', hex: '#6B7F4C' },
+                { name: 'Tan', hex: '#D4B896' },
+                { name: 'White', hex: '#F5F5F5' },
+                { name: 'Black', hex: '#0A0E27' },
+                { name: 'Red', hex: '#C41E3A' },
+                { name: 'Yellow', hex: '#FFD900' },
+                { name: 'Flesh Tone', hex: '#D4A574' },
+                { name: 'Dark Green', hex: '#355C3D' },
+                { name: 'Light Grey', hex: '#C0C0C0' },
+                { name: 'Dark Grey', hex: '#606060' },
+                { name: 'Gunmetal', hex: '#6B8E99' },
+                { name: 'Rust', hex: '#A94E2D' },
+                { name: 'Gold', hex: '#D4AF37' },
+                { name: 'Silver', hex: '#E0E0E0' },
+                { name: 'Copper', hex: '#B87333' },
+                { name: 'Brown', hex: '#654321' },
+                { name: 'Sky Blue', hex: '#87CEEB' }
+            ],
+            citadel: [
+                { name: 'Leadbelcher', hex: '#6B7F99' },
+                { name: 'Rhinox Hide', hex: '#3D2817' },
+                { name: 'Zandri Dust', hex: '#A89968' },
+                { name: 'Screaming Skull', hex: '#FFF8DC' },
+                { name: 'Cadian Fleshtone', hex: '#C77D5C' },
+                { name: 'Mephiston Red', hex: '#7A1C1C' },
+                { name: 'Sotek Green', hex: '#3B5C4A' },
+                { name: 'Averland Sunset', hex: '#D4AF37' },
+                { name: 'Rakarth Flesh', hex: '#E8D9C7' },
+                { name: 'Abaddon Black', hex: '#1A1A1A' },
+                { name: 'Celestra Grey', hex: '#B5B5B5' },
+                { name: 'Dawnstone', hex: '#8C8C8C' },
+                { name: 'Corvus Black', hex: '#2C2C2C' },
+                { name: 'Caledor Sky', hex: '#5B9BD5' },
+                { name: 'Ulthuan Grey', hex: '#D3D3D3' },
+                { name: 'Kislev Flesh', hex: '#D4A574' },
+                { name: 'Fenrisian Grey', hex: '#7A8FA3' },
+                { name: 'Pallid Wych Flesh', hex: '#F0E6D2' },
+                { name: 'Yriel Yellow', hex: '#F4D03F' },
+                { name: 'Thunderhawk Blue', hex: '#2C3E50' }
+            ],
+            ak: [
+                { name: 'Rust', hex: '#A94E2D' },
+                { name: 'Dust', hex: '#C9A961' },
+                { name: 'Earth', hex: '#8B6F47' },
+                { name: 'Mud', hex: '#6B5344' },
+                { name: 'Moss', hex: '#5A6B4A' },
+                { name: 'Oil Stain', hex: '#2C2C2C' },
+                { name: 'Gunmetal', hex: '#6B8E99' },
+                { name: 'Weathered Steel', hex: '#707070' },
+                { name: 'Smoke', hex: '#8C8C8C' },
+                { name: 'Soot', hex: '#3D3D3D' },
+                { name: 'Verdigris', hex: '#5FA88C' },
+                { name: 'Patina', hex: '#6B9B9D' },
+                { name: 'Light Dust', hex: '#D4C4A8' },
+                { name: 'Heavy Wash', hex: '#4A4A4A' },
+                { name: 'Bone Dust', hex: '#F5DEB3' },
+                { name: 'Sand', hex: '#C2B280' },
+                { name: 'Clay', hex: '#997744' },
+                { name: 'Iron Oxide', hex: '#8B4513' },
+                { name: 'Concrete', hex: '#A9A9A9' },
+                { name: 'Carbon Black', hex: '#1A1A1A' }
+            ],
+            armypainter: [
+                { name: 'Skeleton Bone', hex: '#F5E6D3' },
+                { name: 'Bloodstone', hex: '#5A1A1A' },
+                { name: 'Chaotic Red', hex: '#C41E3A' },
+                { name: 'Royal Blue', hex: '#003DA5' },
+                { name: 'Army Green', hex: '#3D5C2F' },
+                { name: 'Lich Purple', hex: '#5A2D5C' },
+                { name: 'Leather Brown', hex: '#654321' },
+                { name: 'Desert Yellow', hex: '#F4C430' },
+                { name: 'Metallic Gun Metal', hex: '#6B8E99' },
+                { name: 'Metallic Gold', hex: '#D4AF37' },
+                { name: 'Metallic Silver', hex: '#E0E0E0' },
+                { name: 'Metallic Copper', hex: '#B87333' },
+                { name: 'Metallic Bronze', hex: '#CD7F32' },
+                { name: 'Metallic Steel', hex: '#8C92AC' },
+                { name: 'Plate Metal', hex: '#6B8E99' },
+                { name: 'Vermin Brown', hex: '#6B4423' },
+                { name: 'Zombie Skin', hex: '#8FA88B' },
+                { name: 'Elf Flesh', hex: '#D4A574' },
+                { name: 'Orc Skin', hex: '#7A8F6B' },
+                { name: 'Dark Sea Blue', hex: '#2C3E50' }
+            ]
+        };
+
+        const state = {
+            colors: [],
+            paletteImage: null,
+            sampledColorCount: 0
+        };
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(x => {
+                const hex = Math.round(x).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('').toUpperCase();
+        }
+
+        function rgbToKS(r, g, b) {
+            const lin = (Math.pow(r / 255, 2.2), Math.pow(g / 255, 2.2), Math.pow(b / 255, 2.2));
+            const channels = [r, g, b].map(c => {
+                let lin = Math.pow(c / 255, 2.2);
+                lin = Math.max(0.001, Math.min(0.999, lin));
+                return (1 - lin) * (1 - lin) / (2 * lin);
+            });
+            return channels;
+        }
+
+        function ksToRgb(ks) {
+            return ks.map(k => {
+                const r = 1 + k - Math.sqrt(k * k + 2 * k);
+                return Math.pow(Math.max(0, r), 1 / 2.2);
+            }).map(c => Math.round(c * 255));
+        }
+
+        function computeMix(colors) {
+            if (colors.length === 0) {
+                return { r: 255, g: 255, b: 255, hex: '#FFFFFF' };
+            }
+
+            const totalWeight = colors.reduce((sum, c) => sum + c.weight, 0);
+            const normalizedWeights = colors.map(c => c.weight / totalWeight);
+
+            const ksArrays = colors.map(c => rgbToKS(c.r, c.g, c.b));
+
+            const mixedKS = [0, 1, 2].map(channel => {
+                return ksArrays.reduce((sum, ks, idx) => sum + ks[channel] * normalizedWeights[idx], 0);
+            });
+
+            const [r, g, b] = ksToRgb(mixedKS);
+            const hex = rgbToHex(r, g, b);
+
+            return { r, g, b, hex };
+        }
+
+        function updateMix() {
+            const mixed = computeMix(state.colors);
+            const hexStr = rgbToHex(mixed.r, mixed.g, mixed.b);
+            const rgbStr = `RGB(${mixed.r}, ${mixed.g}, ${mixed.b})`;
+
+            document.getElementById('mixResult').style.backgroundColor = hexStr;
+            document.getElementById('resultHex').textContent = hexStr;
+            document.getElementById('resultRgb').textContent = rgbStr;
+        }
+
+        function renderColorList() {
+            const colorList = document.getElementById('colorList');
+            const emptyState = document.getElementById('emptyState');
+
+            if (state.colors.length === 0) {
+                colorList.innerHTML = '';
+                emptyState.style.display = 'block';
+                updateMix();
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            colorList.innerHTML = state.colors.map((color, idx) => `
+                <div class="color-item">
+                    <div class="color-swatch" style="background-color: ${rgbToHex(color.r, color.g, color.b)}"></div>
+                    <input type="text" value="${color.name}" onchange="state.colors[${idx}].name = this.value; renderColorList();">
+                    <div class="slider-group">
+                        <input type="range" min="1" max="100" value="${color.weight}" onchange="state.colors[${idx}].weight = parseInt(this.value); updateMix(); renderColorList();">
+                    </div>
+                    <div class="weight-label">${color.weight}%</div>
+                    <button class="remove-btn" onclick="state.colors.splice(${idx}, 1); renderColorList(); updateMix();">✕</button>
+                </div>
+            `).join('');
+
+            updateMix();
+        }
+
+        function addColorFromPicker() {
+            const hex = document.getElementById('colorPicker').value;
+            const rgb = hexToRgb(hex);
+            state.colors.push({
+                name: hex,
+                r: rgb.r,
+                g: rgb.g,
+                b: rgb.b,
+                weight: 50
+            });
+            renderColorList();
+            showColorFeedback(hex, 'Color added');
+        }
+
+        function addColor(name, hex) {
+            const rgb = hexToRgb(hex);
+            state.colors.push({
+                name: name,
+                r: rgb.r,
+                g: rgb.g,
+                b: rgb.b,
+                weight: 50
+            });
+            renderColorList();
+            showColorFeedback(hex, `${name} added`);
+        }
+
+        function showColorFeedback(hex, text) {
+            const feedback = document.getElementById('colorFeedback');
+            feedback.innerHTML = `<div style="display: flex; gap: 8px; align-items: center;"><div style="width: 20px; height: 20px; border-radius: 4px; background: ${hex}; border: 1px solid #ddd;"></div>${text}</div>`;
+            feedback.classList.add('show');
+            setTimeout(() => feedback.classList.remove('show'), 2000);
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('paletteCanvas');
+                    const ctx = canvas.getContext('2d');
+
+                    const maxWidth = 800;
+                    const maxHeight = 300;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const imageData = ctx.getImageData(0, 0, width, height);
+                    state.paletteImage = { canvas, imageData, width, height };
+
+                    document.getElementById('paletteSection').classList.add('active');
+
+                    canvas.addEventListener('click', (clickEvent) => {
+                        const rect = canvas.getBoundingClientRect();
+                        const x = Math.floor((clickEvent.clientX - rect.left) * (canvas.width / rect.width));
+                        const y = Math.floor((clickEvent.clientY - rect.top) * (canvas.height / rect.height));
+
+                        if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+                            const imageData = ctx.getImageData(x, y, 1, 1);
+                            const data = imageData.data;
+                            const hex = rgbToHex(data[0], data[1], data[2]);
+
+                            state.sampledColorCount++;
+                            const colorName = `Sampled #${state.sampledColorCount}`;
+                            addColor(colorName, hex);
+                        }
+                    }, { once: false });
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showPresetColors() {
+            const select = document.getElementById('presetSelect');
+            const brand = select.value;
+            const presetsContainer = document.getElementById('presetsContainer');
+
+            if (!brand) {
+                presetsContainer.innerHTML = '';
+                return;
+            }
+
+            const colors = PRESETS[brand];
+            presetsContainer.innerHTML = `
+                <div style="padding: 20px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0;">
+                    <h3 style="font-size: 14px; color: #333; margin-bottom: 12px; font-weight: 600;">${select.options[select.selectedIndex].text}</h3>
+                    <div class="preset-colors">
+                        ${colors.map(color => `
+                            <button class="preset-color-btn" onclick="addColor('${color.name}', '${color.hex}'); document.getElementById('presetSelect').value = '';">
+                                <div class="preset-color-swatch" style="background-color: ${color.hex}"></div>
+                                <span>${color.name}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+
+        renderColorList();
+        updateMix();
+    </script>
+</body>
+</html>
