@@ -731,23 +731,29 @@
             ctx.putImageData(img.imageData, 0, 0);
 
             renderPaletteTabs();
-            setupCanvasClickHandler();
         }
 
         function setupCanvasClickHandler() {
             const canvas = document.getElementById('paletteCanvas');
-            canvas.replaceWith(canvas.cloneNode(true));
-            const newCanvas = document.getElementById('paletteCanvas');
+            const img = state.paletteImages[state.currentImageIndex];
+
+            // Remove any existing click handlers by cloning and replacing
+            const newCanvas = canvas.cloneNode(true);
+            canvas.parentNode.replaceChild(newCanvas, canvas);
+
+            // Redraw the image on the cloned canvas (cloning doesn't preserve pixel data)
+            const ctx = newCanvas.getContext('2d');
+            ctx.putImageData(img.imageData, 0, 0);
 
             newCanvas.addEventListener('click', (clickEvent) => {
-                const img = state.paletteImages[state.currentImageIndex];
-                const ctx = newCanvas.getContext('2d');
+                const currentImg = state.paletteImages[state.currentImageIndex];
+                const clickCtx = newCanvas.getContext('2d');
                 const rect = newCanvas.getBoundingClientRect();
                 const x = Math.floor((clickEvent.clientX - rect.left) * (newCanvas.width / rect.width));
                 const y = Math.floor((clickEvent.clientY - rect.top) * (newCanvas.height / rect.height));
 
                 if (x >= 0 && x < newCanvas.width && y >= 0 && y < newCanvas.height) {
-                    const imageData = ctx.getImageData(x, y, 1, 1);
+                    const imageData = clickCtx.getImageData(x, y, 1, 1);
                     const data = imageData.data;
                     const hex = rgbToHex(data[0], data[1], data[2]);
 
@@ -766,8 +772,8 @@
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
+                    const tempCanvas = document.createElement('canvas');
+                    const ctx = tempCanvas.getContext('2d');
 
                     const maxWidth = 800;
                     const maxHeight = 300;
@@ -783,25 +789,30 @@
                         height = maxHeight;
                     }
 
-                    canvas.width = width;
-                    canvas.height = height;
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
 
                     const imageData = ctx.getImageData(0, 0, width, height);
+
+                    // Store the image data
                     state.paletteImages.push({ imageData, width, height });
                     state.currentImageIndex = state.paletteImages.length - 1;
 
+                    // Show the palette section and render tabs
                     document.getElementById('paletteSection').classList.add('active');
                     renderPaletteTabs();
 
-                    // Draw the current image
+                    // Display the image on the canvas
                     const displayCanvas = document.getElementById('paletteCanvas');
                     displayCanvas.width = width;
                     displayCanvas.height = height;
                     const displayCtx = displayCanvas.getContext('2d');
                     displayCtx.putImageData(imageData, 0, 0);
 
+                    // Set up click handler
                     setupCanvasClickHandler();
+
                     showColorFeedback('#667eea', `Image ${state.paletteImages.length} uploaded`);
                 };
                 img.src = event.target.result;
