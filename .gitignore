@@ -1,0 +1,33 @@
+# IDE and Editor directories
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node modules (if ever needed for build/test)
+node_modules/
+package-lock.json
+yarn.lock
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+.~*
+
+# Build outputs (if ever added)
+dist/
+build/
