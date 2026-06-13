@@ -126,6 +126,37 @@
             font-weight: 600;
         }
 
+        .palette-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .palette-tab {
+            padding: 6px 12px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .palette-tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .palette-tab:hover {
+            border-color: #667eea;
+        }
+
         #paletteCanvas {
             max-width: 100%;
             max-height: 300px;
@@ -416,6 +447,7 @@
 
         <div class="palette-section" id="paletteSection">
             <h3>Click on paint pots or colors to sample them</h3>
+            <div class="palette-tabs" id="paletteTabs"></div>
             <canvas id="paletteCanvas"></canvas>
         </div>
 
@@ -541,7 +573,8 @@
 
         const state = {
             colors: [],
-            paletteImage: null,
+            paletteImages: [],
+            currentImageIndex: 0,
             sampledColorCount: 0
         };
 
@@ -583,10 +616,18 @@
                 return { r: 255, g: 255, b: 255, hex: '#FFFFFF' };
             }
 
-            const totalWeight = colors.reduce((sum, c) => sum + c.weight, 0);
-            const normalizedWeights = colors.map(c => c.weight / totalWeight);
+            // Filter out colors with 0% weight
+            const activeColors = colors.filter(c => c.weight > 0);
 
-            const ksArrays = colors.map(c => rgbToKS(c.r, c.g, c.b));
+            if (activeColors.length === 0) {
+                // All colors are at 0% - show white as reference
+                return { r: 255, g: 255, b: 255, hex: '#FFFFFF' };
+            }
+
+            const totalWeight = activeColors.reduce((sum, c) => sum + c.weight, 0);
+            const normalizedWeights = activeColors.map(c => c.weight / totalWeight);
+
+            const ksArrays = activeColors.map(c => rgbToKS(c.r, c.g, c.b));
 
             const mixedKS = [0, 1, 2].map(channel => {
                 return ksArrays.reduce((sum, ks, idx) => sum + ks[channel] * normalizedWeights[idx], 0);
@@ -626,7 +667,7 @@
                     <div class="color-swatch" style="background-color: ${rgbToHex(color.r, color.g, color.b)}"></div>
                     <input type="text" value="${color.name}" onchange="state.colors[${idx}].name = this.value; renderColorList();">
                     <div class="slider-group">
-                        <input type="range" min="1" max="100" value="${color.weight}" onchange="state.colors[${idx}].weight = parseInt(this.value); updateMix(); renderColorList();">
+                        <input type="range" min="0" max="100" value="${color.weight}" onchange="state.colors[${idx}].weight = parseInt(this.value); updateMix(); renderColorList();">
                     </div>
                     <div class="weight-label">${color.weight}%</div>
                     <button class="remove-btn" onclick="state.colors.splice(${idx}, 1); renderColorList(); updateMix();">✕</button>
@@ -670,6 +711,53 @@
             setTimeout(() => feedback.classList.remove('show'), 2000);
         }
 
+        function renderPaletteTabs() {
+            const tabsContainer = document.getElementById('paletteTabs');
+            tabsContainer.innerHTML = state.paletteImages.map((img, idx) => `
+                <button class="palette-tab ${idx === state.currentImageIndex ? 'active' : ''}" onclick="switchPaletteImage(${idx})">
+                    Image ${idx + 1}
+                </button>
+            `).join('');
+        }
+
+        function switchPaletteImage(idx) {
+            state.currentImageIndex = idx;
+            const img = state.paletteImages[idx];
+            const canvas = document.getElementById('paletteCanvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.putImageData(img.imageData, 0, 0);
+
+            renderPaletteTabs();
+            setupCanvasClickHandler();
+        }
+
+        function setupCanvasClickHandler() {
+            const canvas = document.getElementById('paletteCanvas');
+            canvas.replaceWith(canvas.cloneNode(true));
+            const newCanvas = document.getElementById('paletteCanvas');
+
+            newCanvas.addEventListener('click', (clickEvent) => {
+                const img = state.paletteImages[state.currentImageIndex];
+                const ctx = newCanvas.getContext('2d');
+                const rect = newCanvas.getBoundingClientRect();
+                const x = Math.floor((clickEvent.clientX - rect.left) * (newCanvas.width / rect.width));
+                const y = Math.floor((clickEvent.clientY - rect.top) * (newCanvas.height / rect.height));
+
+                if (x >= 0 && x < newCanvas.width && y >= 0 && y < newCanvas.height) {
+                    const imageData = ctx.getImageData(x, y, 1, 1);
+                    const data = imageData.data;
+                    const hex = rgbToHex(data[0], data[1], data[2]);
+
+                    state.sampledColorCount++;
+                    const colorName = `Sampled #${state.sampledColorCount}`;
+                    addColor(colorName, hex);
+                }
+            });
+        }
+
         function handleImageUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -678,7 +766,7 @@
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    const canvas = document.getElementById('paletteCanvas');
+                    const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
                     const maxWidth = 800;
@@ -700,29 +788,27 @@
                     ctx.drawImage(img, 0, 0, width, height);
 
                     const imageData = ctx.getImageData(0, 0, width, height);
-                    state.paletteImage = { canvas, imageData, width, height };
+                    state.paletteImages.push({ imageData, width, height });
+                    state.currentImageIndex = state.paletteImages.length - 1;
 
                     document.getElementById('paletteSection').classList.add('active');
+                    renderPaletteTabs();
 
-                    canvas.addEventListener('click', (clickEvent) => {
-                        const rect = canvas.getBoundingClientRect();
-                        const x = Math.floor((clickEvent.clientX - rect.left) * (canvas.width / rect.width));
-                        const y = Math.floor((clickEvent.clientY - rect.top) * (canvas.height / rect.height));
+                    // Draw the current image
+                    const displayCanvas = document.getElementById('paletteCanvas');
+                    displayCanvas.width = width;
+                    displayCanvas.height = height;
+                    const displayCtx = displayCanvas.getContext('2d');
+                    displayCtx.putImageData(imageData, 0, 0);
 
-                        if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
-                            const imageData = ctx.getImageData(x, y, 1, 1);
-                            const data = imageData.data;
-                            const hex = rgbToHex(data[0], data[1], data[2]);
-
-                            state.sampledColorCount++;
-                            const colorName = `Sampled #${state.sampledColorCount}`;
-                            addColor(colorName, hex);
-                        }
-                    }, { once: false });
+                    setupCanvasClickHandler();
+                    showColorFeedback('#667eea', `Image ${state.paletteImages.length} uploaded`);
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
+            // Reset input so user can upload the same file again
+            e.target.value = '';
         }
 
         function showPresetColors() {
